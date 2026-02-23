@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Biosphere Simulator — Photosynthesis &amp; Cellular Respiration</title>
+  <meta name="description"
+    content="Interactive educational simulator exploring how photosynthesis and cellular respiration interact inside closed mini biospheres." />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ── Design System ── */
+    :root {
+      --bg-base: #0a0d16;
+      --bg-surface: #111827;
+      --bg-card: rgba(17, 24, 39, 0.9);
+      --bg-glass: rgba(255, 255, 255, 0.03);
+      --border: rgba(255, 255, 255, 0.07);
+      --border-acc: rgba(0, 229, 255, 0.25);
+      --text-primary: #cdd6f4;
+      --text-secondary: #7f849c;
+      --text-accent: #00e5ff;
+      --cyan: #00e5ff;
+      --green: #69ff47;
+      --red: #ff6b6b;
+      --orange: #ffb347;
+      --radius: 12px;
+      --radius-sm: 6px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      --glow-cyan: 0 0 18px rgba(0, 229, 255, 0.3);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 80, 120, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 90%, rgba(60, 0, 120, 0.14) 0%, transparent 60%);
+    }
+
+    /* ── Header ── */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 18px 28px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 13, 22, 0.92);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icon {
+      font-size: 1.9rem;
+    }
+
+    .header-text h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--cyan), var(--green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-text p {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 13, 22, 0.75);
+      flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 26px;
+      background: var(--border);
+      margin: 0 2px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s ease;
+      letter-spacing: .02em;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0077aa, #00a8cc);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0, 168, 204, .28);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(0, 168, 204, .38);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #1a7a00, #2eb300);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(46, 179, 0, .22);
+    }
+
+    .btn-success:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: rgba(255, 107, 107, .14);
+      color: var(--red);
+      border: 1px solid rgba(255, 107, 107, .28);
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 107, 107, .24);
+    }
+
+    .btn-add {
+      background: linear-gradient(135deg, rgba(0, 229, 255, .1), rgba(105, 255, 71, .1));
+      color: var(--cyan);
+      border: 1px solid rgba(0, 229, 255, .28);
+    }
+
+    .btn-add:hover {
+      background: rgba(0, 229, 255, .18);
+      box-shadow: var(--glow-cyan);
+    }
+
+    .speed-control,
+    .duration-control {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.77rem;
+      color: var(--text-secondary);
+    }
+
+    .speed-control input[type=range] {
+      width: 80px;
+      accent-color: var(--cyan);
+    }
+
+    .speed-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-primary);
+      min-width: 34px;
+    }
+
+    .duration-control input[type=number] {
+      width: 64px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      padding: 3px 7px;
+      outline: none;
+    }
+
+    .duration-control input:focus {
+      border-color: var(--cyan);
+    }
+
+    /* ── Content ── */
+    .content-area {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 370px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Config Panel ── */
+    .config-panel {
+      border-right: 1px solid var(--border);
+      background: rgba(10, 13, 22, 0.55);
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .config-panel-header {
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding: 0 4px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .biosphere-config {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top: 3px solid;
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: box-shadow .2s;
+    }
+
+    .biosphere-config:hover {
+      box-shadow: var(--shadow);
+    }
+
+    .config-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 13px 9px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .config-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .config-header h3 {
+      font-size: .88rem;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: .85rem;
+      padding: 2px 5px;
+      border-radius: 4px;
+      transition: all .15s;
+    }
+
+    .remove-btn:hover {
+      color: var(--red);
+      background: rgba(255, 107, 107, .1);
+    }
+
+    .config-fields {
+      padding: 9px 13px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cfg-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .cfg-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: .74rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      position: relative;
+    }
+
+    .cfg-name {
+      flex: 1;
+    }
+
+    .cfg-tip-icon {
+      font-size: .65rem;
+      color: var(--text-secondary);
+      cursor: help;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: 1px solid var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color .15s, color .15s;
+    }
+
+    .cfg-tip-icon:hover {
+      color: var(--cyan);
+      border-color: var(--cyan);
+    }
+
+    .cfg-tooltip {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 200;
+      background: rgba(17, 24, 39, .97);
+      border: 1px solid var(--border-acc);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font-size: .71rem;
+      color: var(--text-primary);
+      width: 220px;
+      line-height: 1.45;
+      pointer-events: none;
+      box-shadow: var(--shadow);
+    }
+
+    .cfg-label:hover .cfg-tooltip {
+      display: block;
+    }
+
+    .cfg-input-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cfg-slider {
+      flex: 1;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .cfg-val-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .76rem;
+      color: var(--cyan);
+      min-width: 38px;
+      text-align: right;
+    }
+
+    .cfg-unit {
+      font-size: .68rem;
+      color: var(--text-secondary);
+      min-width: 28px;
+    }
+
+    /* ── Sim Area ── */
+    .sim-area {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
+    }
+
+    /* State cards */
+    .cards-section {
+      padding: 13px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    #cards-wrap {
+      display: flex;
+      gap: 12px;
+      min-width: max-content;
+    }
+
+    .state-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top: 3px solid;
+      border-radius: var(--radius);
+      width: 225px;
+      flex-shrink: 0;
+      padding: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      transition: box-shadow .2s;
+    }
+
+    .state-card:hover {
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-size: .86rem;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .tick-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: var(--text-secondary);
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+
+    .status-badge {
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .status-badge.alive {
+      background: rgba(105, 255, 71, .15);
+      color: var(--green);
+    }
+
+    .status-badge.dead {
+      background: rgba(255, 107, 107, .15);
+      color: var(--red);
+    }
+
+    .health-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .health-bar {
+      flex: 1;
+      height: 7px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, .06);
+      overflow: hidden;
+    }
+
+    .health-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width .4s ease, background .4s ease;
+    }
+
+    .health-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .73rem;
+      color: var(--text-primary);
+      min-width: 32px;
+      text-align: right;
+    }
+
+    .death-cause {
+      font-size: .7rem;
+      color: var(--red);
+      background: rgba(255, 107, 107, .1);
+      border: 1px solid rgba(255, 107, 107, .2);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      line-height: 1.4;
+    }
+
+    .rates-section {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .rate-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .rate-label {
+      font-size: .68rem;
+      color: var(--text-secondary);
+      flex: 0 0 108px;
+    }
+
+    .rate-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .66rem;
+      color: var(--text-primary);
+      flex: 0 0 75px;
+      text-align: right;
+    }
+
+    .rate-track {
+      flex: 1 0 100%;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, .05);
+      overflow: hidden;
+    }
+
+    .rate-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .3s ease;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+    }
+
+    .metric {
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px 7px;
+    }
+
+    .m-label {
+      display: block;
+      font-size: .62rem;
+      color: var(--text-secondary);
+      margin-bottom: 1px;
+    }
+
+    .m-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Charts */
+    .charts-section {
+      padding: 14px;
+      overflow-y: auto;
+      background: rgba(10, 13, 22, .3);
+    }
+
+    .charts-header {
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 11px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 11px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px;
+      backdrop-filter: blur(8px);
+    }
+
+    .chart-card h4 {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 7px;
+    }
+
+    .chart-body {
+      position: relative;
+      height: 130px;
+    }
+
+    /* Footer equations */
+    .equation-banner {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 9px 28px;
+      border-top: 1px solid var(--border);
+      background: rgba(10, 13, 22, .8);
+      font-size: .72rem;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      position: relative;
+      z-index: 10;
+    }
+
+    .eq-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .eq-type {
+      color: var(--text-secondary);
+      margin-right: 3px;
+    }
+
+    .eq-text {
+      color: var(--text-primary);
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      color: var(--text-secondary);
+      padding: 36px;
+      font-size: .83rem;
+      text-align: center;
+    }
+
+    .empty-state span:first-child {
+      font-size: 2.2rem;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(127, 132, 156, .28);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(127, 132, 156, .46);
+    }
+
+    @media(max-width:1100px) {
+      .content-area {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      .config-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: 320px;
+      }
+
+      .charts-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media(max-width:680px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <span class="header-icon">🌿</span>
+    <div class="header-text">
+      <h1>Mini Biosphere Simulator</h1>
+      <p>Interactive model of photosynthesis &amp; cellular respiration in closed ecosystems</p>
+    </div>
+  </header>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="btn btn-add" id="add-sphere-btn">＋ Add Biosphere</button>
+      <button class="btn btn-success" id="apply-run-btn">🚀 Apply &amp; Run</button>
+      <button class="btn btn-primary" id="run-btn">▶ Run Simulation</button>
+      <button class="btn btn-danger" id="reset-btn">↺ Reset</button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group speed-control">
+      <span>Speed</span>
+      <input type="range" id="tick-speed" min="30" max="800" step="10" value="150" />
+      <span class="speed-val" id="tick-speed-val">150ms</span>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group duration-control">
+      <span>Duration</span>
+      <input type="number" id="max-ticks" value="720" min="24" max="8760" step="24" />
+      <span>simulated hours</span>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content-area">
+
+    <!-- Left: config panels -->
+    <aside class="config-panel">
+      <div class="config-panel-header">⚙ Initial Conditions</div>
+      <div id="configs-wrap">
+        <div class="empty-state"><span>🧪</span><span>Click <strong>＋ Add Biosphere</strong> to begin</span></div>
+      </div>
+    </aside>
+
+    <!-- Right: sim + charts -->
+    <section class="sim-area">
+      <div class="cards-section">
+        <div id="cards-wrap">
+          <div class="empty-state" style="padding:20px 32px;"><span>🔬</span><span>Live states appear here</span></div>
+        </div>
+      </div>
+      <div class="charts-section">
+        <div class="charts-header">📈 Real-Time Measurements</div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h4>🫧 Oxygen (O₂ %)</h4>
+            <div class="chart-body"><canvas id="chart-o2"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h4>💨 Carbon Dioxide (CO₂ %)</h4>
+            <div class="chart-body"><canvas id="chart-co2"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h4>🍬 Glucose Pool (mmol)</h4>
+            <div class="chart-body"><canvas id="chart-glucose"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h4>🐾 Consumer Population</h4>
+            <div class="chart-body"><canvas id="chart-pop"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h4>🌱 Plant Biomass (%)</h4>
+            <div class="chart-body"><canvas id="chart-plant"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h4>❤️ Ecosystem Health (%)</h4>
+            <div class="chart-body"><canvas id="chart-health"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Equation banner -->
+  <footer class="equation-banner">
+    <div class="eq-item"><span>📗</span><span><span class="eq-type">Photosynthesis:</span><span class="eq-text">6CO₂ +
+          6H₂O + light → C₆H₁₂O₆ + 6O₂</span></span></div>
+    <div class="eq-item"><span>🔥</span><span><span class="eq-type">Respiration:</span><span class="eq-text">C₆H₁₂O₆ +
+          6O₂ → 6CO₂ + 6H₂O + ~38 ATP</span></span></div>
+    <div class="eq-item"><span>♻️</span><span><span class="eq-type">Decomposition:</span><span class="eq-text">Organic
+          matter → CO₂ + minerals</span></span></div>
+  </footer>
+
+  <!-- ALL JAVASCRIPT (no ES modules) -->
+  <script>
+    /* ══════════════════════════════════════════════
+       SIMULATION ENGINE
+    ══════════════════════════════════════════════ */
+    const SIM = {
+      MIN_O2_SURVIVAL: 1, MIN_GLUCOSE_SURVIVAL: 2,
+      CO2_TOXICITY_THRESHOLD: 5, TEMP_PHOTO_OPT: 25,
+      TEMP_RESP_OPT: 37, TEMP_RANGE: 15,
+      DECOMP_CO2_RATE: 0.002, WATER_CYCLE_RATE: 0.003,
+    };
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function rand(lo, hi) { return lo + Math.random() * (hi - lo); }
+    function tempFactor(t, opt, range) { return Math.exp(-0.5 * Math.pow((t - opt) / range, 2)); }
+    function mmSat(c, km) { return c / (c + km); }
+
+    class Biosphere {
+      constructor(cfg, name) { this.name = name; this.cfg = { ...cfg }; this.reset(); }
+
+      reset() {
+        const c = this.cfg;
+        this.tick = 0;
+        this.o2 = clamp(c.initialO2, 0, 30);
+        this.co2 = clamp(c.initialCO2, 0, 10);
+        this.water = clamp(c.initialWater, 0, 100);
+        this.glucose = 50;
+        this.plantBiomass = clamp(c.plantBiomass, 0, 100);
+        this.consumerPop = clamp(c.consumerCount, 0, 50);
+        this.alive = true; this.cause = null; this.health = 100;
+        this.history = [];
+        this.recordHistory();
+      }
+
+      get lightOnFraction() {
+        const p = clamp(this.cfg.photoperiod, 0, 24);
+        const h = this.tick % 24;
+        const start = 12 - p / 2, end = 12 + p / 2;
+        return (h >= start && h < end) ? 1 : 0;
+      }
+
+      computePhotosynthesis() {
+        const c = this.cfg;
+        const L = this.lightOnFraction * (c.lightIntensity / 100);
+        const tF = tempFactor(c.temperature, SIM.TEMP_PHOTO_OPT, SIM.TEMP_RANGE);
+        const wF = mmSat(this.water, 20);
+        const co2F = mmSat(this.co2, 0.5);
+        const nF = mmSat(c.nutrientLevel, 30) * 0.8 + 0.2;
+        const bm = this.plantBiomass / 100;
+        return Math.max(0, 15 * bm * L * co2F * tF * wF * nF);
+      }
+
+      computeRespiration() {
+        const c = this.cfg;
+        const tF = tempFactor(c.temperature, SIM.TEMP_RESP_OPT, SIM.TEMP_RANGE);
+        const o2F = mmSat(this.o2, 2);
+        const gF = mmSat(this.glucose, 10);
+        const pR = 1.5 * (this.plantBiomass / 100) * tF * o2F * gF;
+        const aR = 0.3 * this.consumerPop * tF * o2F * gF;
+        return Math.max(0, pR + aR);
+      }
+
+      computeDecomposition() {
+        const tF = tempFactor(this.cfg.temperature, 28, 10);
+        return SIM.DECOMP_CO2_RATE * this.cfg.decomposerActivity * tF;
+      }
+
+      step() {
+        if (!this.alive) return;
+        this.tick++;
+        const photo = this.computePhotosynthesis();
+        const resp = this.computeRespiration();
+        const decomp = this.computeDecomposition();
+
+        // Gas & molecule exchange
+        this.o2 = clamp(this.o2 + photo - resp * 0.95, 0, 40);
+        this.co2 = clamp(this.co2 + resp * 0.88 + decomp - photo * 0.8, 0, 20);
+        this.water = clamp(this.water + resp * 0.28 + this.water * SIM.WATER_CYCLE_RATE - photo * 0.38, 0, 100);
+        this.glucose = clamp(this.glucose + photo - resp * 0.82, 0, 1000);
+
+        const atpProduced = resp * 38;
+
+        // Population dynamics
+        if (this.consumerPop > 0) {
+          const eng = atpProduced / Math.max(1, this.consumerPop);
+          if (eng > 18 && this.glucose > 20 && this.o2 > 5)
+            this.consumerPop = Math.min(50, this.consumerPop + rand(0, 0.05));
+          else if (eng < 8 || this.o2 < SIM.MIN_O2_SURVIVAL * 2)
+            this.consumerPop = Math.max(0, this.consumerPop - rand(0.02, 0.12));
+        }
+
+        // Plant growth/die-back
+        if (photo > resp * 0.5 && this.water > 10 && this.glucose > 15)
+          this.plantBiomass = Math.min(100, this.plantBiomass + 0.02);
+        else if (photo < resp * 0.3 || this.water < 5 || this.glucose < 5)
+          this.plantBiomass = Math.max(0, this.plantBiomass - 0.05);
+
+        // Health
+        let pen = 0;
+        if (this.o2 < SIM.MIN_O2_SURVIVAL) pen += 30;
+        else if (this.o2 < 5) pen += (5 - this.o2) * 3;
+        if (this.co2 > SIM.CO2_TOXICITY_THRESHOLD) pen += (this.co2 - SIM.CO2_TOXICITY_THRESHOLD) * 5;
+        if (this.glucose < SIM.MIN_GLUCOSE_SURVIVAL) pen += 20;
+        else if (this.glucose < 10) pen += (10 - this.glucose) * 1.5;
+        if (this.water < 5) pen += 15;
+        if (this.plantBiomass < 2) pen += 20;
+        if (this.cfg.temperature < 5 || this.cfg.temperature > 42) pen += 15;
+        this.health = clamp(this.health - pen * 0.01 + 0.05, 0, 100);
+
+        if (this.health <= 0) { this.alive = false; this.cause = this._cause(); }
+        this.recordHistory();
+      }
+
+      _cause() {
+        if (this.o2 < SIM.MIN_O2_SURVIVAL) return 'Oxygen depletion (asphyxiation)';
+        if (this.co2 > SIM.CO2_TOXICITY_THRESHOLD + 3) return 'CO₂ toxicity (hypercapnia)';
+        if (this.glucose < SIM.MIN_GLUCOSE_SURVIVAL && this.plantBiomass < 2) return 'Energy starvation';
+        if (this.water < 2) return 'Dehydration';
+        if (this.cfg.temperature > 42) return 'Heat stress (enzyme denaturation)';
+        if (this.cfg.temperature < 5) return 'Cold stress (metabolic shutdown)';
+        return 'Ecosystem collapse (multiple factors)';
+      }
+
+      recordHistory() {
+        this.history.push({
+          tick: this.tick, o2: +this.o2.toFixed(2), co2: +this.co2.toFixed(2),
+          glucose: +this.glucose.toFixed(1), pop: +this.consumerPop.toFixed(2),
+          plantBiomass: +this.plantBiomass.toFixed(2), health: +this.health.toFixed(1),
+          photoRate: +this.computePhotosynthesis().toFixed(3),
+          respRate: +this.computeRespiration().toFixed(3),
+        });
+      }
+
+      get state() {
+        return {
+          tick: this.tick, o2: this.o2, co2: this.co2, water: this.water, glucose: this.glucose,
+          consumerPop: this.consumerPop, plantBiomass: this.plantBiomass, health: this.health,
+          alive: this.alive, cause: this.cause,
+          photoRate: this.computePhotosynthesis(), respRate: this.computeRespiration(),
+        };
+      }
+    }
+
+    /* ══════════════════════════════════════════════
+       APP CONTROLLER
+    ══════════════════════════════════════════════ */
+    const MAX_BS = 4;
+    const COLORS = [
+      { line: '#00e5ff', fill: 'rgba(0,229,255,0.12)', label: 'Sphere A' },
+      { line: '#ff6b6b', fill: 'rgba(255,107,107,0.12)', label: 'Sphere B' },
+      { line: '#69ff47', fill: 'rgba(105,255,71,0.12)', label: 'Sphere C' },
+      { line: '#ffb347', fill: 'rgba(255,179,71,0.12)', label: 'Sphere D' },
+    ];
+
+    let biospheres = [];
+    let simTimer = null;
+    let tickSpeed = 150;
+    let isRunning = false;
+    let maxTicks = 720;
+    let charts = {};
+
+    /* ── Charts ── */
+    function makeChartCfg(label, unit, min, max) {
+      return {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+          animation: false, responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { color: '#cdd6f4', font: { size: 10 } } }, tooltip: { mode: 'index' } },
+          scales: {
+            x: {
+              ticks: { color: '#7f849c', maxTicksLimit: 8, font: { size: 9 } }, grid: { color: 'rgba(127,132,156,0.12)' },
+              title: { display: true, text: 'Hours', color: '#7f849c', font: { size: 9 } }
+            },
+            y: {
+              min, max, ticks: { color: '#7f849c', font: { size: 9 } }, grid: { color: 'rgba(127,132,156,0.12)' },
+              title: { display: true, text: `${label} (${unit})`, color: '#7f849c', font: { size: 9 } }
+            }
+          }
+        }
+      };
+    }
+
+    function initCharts() {
+      const defs = {
+        o2: makeChartCfg('O₂', '%', 0, 30),
+        co2: makeChartCfg('CO₂', '%', 0, 12),
+        glucose: makeChartCfg('Glucose', 'mmol', 0, 200),
+        pop: makeChartCfg('Consumers', 'count', 0, 55),
+        plant: makeChartCfg('Plant Biomass', '%', 0, 105),
+        health: makeChartCfg('Health', '%', 0, 105),
+      };
+      for (const [k, cfg] of Object.entries(defs)) {
+        const ctx = document.getElementById(`chart-${k}`).getContext('2d');
+        if (charts[k]) charts[k].destroy();
+        charts[k] = new Chart(ctx, cfg);
+      }
+    }
+
+    function rebuildDatasets() {
+      for (const c of Object.values(charts)) { c.data.labels = []; c.data.datasets = []; }
+      biospheres.forEach((b, i) => {
+        const col = b.color;
+        const ds = (lbl) => ({
+          label: `${COLORS[i].label}: ${lbl}`, data: [],
+          borderColor: col.line, backgroundColor: col.fill,
+          borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false,
+        });
+        charts.o2.data.datasets.push(ds('O₂'));
+        charts.co2.data.datasets.push(ds('CO₂'));
+        charts.glucose.data.datasets.push(ds('Glucose'));
+        charts.pop.data.datasets.push(ds('Consumers'));
+        charts.plant.data.datasets.push(ds('Plants'));
+        charts.health.data.datasets.push(ds('Health'));
+      });
+    }
+
+    function pushData() {
+      biospheres.forEach((b, i) => {
+        const h = b.instance.history;
+        if (!h.length) return;
+        const last = h[h.length - 1];
+        if (i === 0) for (const c of Object.values(charts)) c.data.labels.push(`${last.tick}h`);
+        charts.o2.data.datasets[i].data.push(last.o2);
+        charts.co2.data.datasets[i].data.push(last.co2);
+        charts.glucose.data.datasets[i].data.push(last.glucose);
+        charts.pop.data.datasets[i].data.push(last.pop);
+        charts.plant.data.datasets[i].data.push(last.plantBiomass);
+        charts.health.data.datasets[i].data.push(last.health);
+      });
+      for (const c of Object.values(charts)) c.update();
+    }
+
+    /* ── UI helpers ── */
+    function healthColor(h) {
+      if (h > 70) return '#69ff47'; if (h > 40) return '#ffb347'; if (h > 15) return '#ff6b6b'; return '#555';
+    }
+
+    function updateCards() {
+      biospheres.forEach((b, i) => {
+        const s = b.instance.state;
+        const card = document.getElementById(`card-${i}`);
+        if (!card) return;
+        const bar = card.querySelector('.health-fill');
+        bar.style.width = `${s.health.toFixed(0)}%`;
+        bar.style.background = healthColor(s.health);
+        card.querySelector('.health-val').textContent = `${s.health.toFixed(0)}%`;
+        card.querySelector('.val-o2').textContent = `${s.o2.toFixed(2)}%`;
+        card.querySelector('.val-co2').textContent = `${s.co2.toFixed(2)}%`;
+        card.querySelector('.val-glucose').textContent = `${s.glucose.toFixed(1)} mmol`;
+        card.querySelector('.val-water').textContent = `${s.water.toFixed(1)}`;
+        card.querySelector('.val-pop').textContent = s.consumerPop.toFixed(1);
+        card.querySelector('.val-plant').textContent = `${s.plantBiomass.toFixed(1)}%`;
+        card.querySelector('.val-photo').textContent = `${s.photoRate.toFixed(3)} mmol/h`;
+        card.querySelector('.val-resp').textContent = `${s.respRate.toFixed(3)} mmol/h`;
+        card.querySelector('.val-tick').textContent = `${s.tick}h`;
+        const badge = card.querySelector('.status-badge');
+        const dc = card.querySelector('.death-cause');
+        if (s.alive) { badge.textContent = '🟢 Alive'; badge.className = 'status-badge alive'; dc.style.display = 'none'; }
+        else { badge.textContent = '💀 Collapsed'; badge.className = 'status-badge dead'; dc.textContent = s.cause || ''; dc.style.display = 'block'; }
+        card.querySelector('.photo-rate-bar').style.width = `${Math.min(100, (s.photoRate / 15) * 100)}%`;
+        card.querySelector('.resp-rate-bar').style.width = `${Math.min(100, (s.respRate / 15) * 100)}%`;
+      });
+    }
+
+    /* ── Simulation loop ── */
+    function tick() {
+      let anyAlive = false;
+      biospheres.forEach(b => {
+        if (b.instance.alive && b.instance.tick < maxTicks) { b.instance.step(); anyAlive = true; }
+      });
+      updateCards();
+      if (biospheres[0] && biospheres[0].instance.tick % 6 === 0) pushData();
+      const allDone = biospheres.every(b => !b.instance.alive || b.instance.tick >= maxTicks);
+      if (allDone) { stopSim(); pushData(); document.getElementById('run-btn').textContent = '⏹ Finished'; }
+    }
+
+    function startSim() {
+      if (!biospheres.length) { alert('Add at least one biosphere first!'); return; }
+      isRunning = true;
+      document.getElementById('run-btn').textContent = '⏸ Pause';
+      document.getElementById('run-btn').onclick = pauseSim;
+      simTimer = setInterval(tick, tickSpeed);
+    }
+    function pauseSim() {
+      isRunning = false; clearInterval(simTimer);
+      document.getElementById('run-btn').textContent = '▶ Resume';
+      document.getElementById('run-btn').onclick = startSim;
+    }
+    function stopSim() { isRunning = false; clearInterval(simTimer); }
+
+    function resetAll() {
+      stopSim();
+      biospheres.forEach(b => b.instance.reset());
+      rebuildDatasets();
+      for (const c of Object.values(charts)) { c.data.labels = []; c.data.datasets.forEach(d => d.data = []); c.update(); }
+      updateCards();
+      document.getElementById('run-btn').textContent = '▶ Run Simulation';
+      document.getElementById('run-btn').onclick = startSim;
+    }
+
+    /* ── Config builder ── */
+    const FIELD_DEFS = [
+      {
+        key: 'lightIntensity', label: 'Light Intensity', unit: 'lux', min: 0, max: 100, step: 1,
+        tip: 'Amount of light for photosynthesis. Higher light → faster O₂ and glucose production. Day/night is controlled by photoperiod.'
+      },
+      {
+        key: 'photoperiod', label: 'Photoperiod', unit: 'h/day', min: 0, max: 24, step: 0.5,
+        tip: 'Hours of light per simulated day. During darkness, plants switch to respiration only, consuming stored glucose.'
+      },
+      {
+        key: 'initialCO2', label: 'Initial CO₂', unit: '%', min: 0.01, max: 10, step: 0.01,
+        tip: 'CO₂ is a raw substrate for photosynthesis. Above ~5% becomes toxic (hypercapnia). Current Earth atmosphere ≈ 0.04%.'
+      },
+      {
+        key: 'initialO2', label: 'Initial O₂', unit: '%', min: 0, max: 30, step: 0.5,
+        tip: 'O₂ needed for aerobic respiration. Below ~1% causes asphyxiation. Earth atmosphere ≈ 21%.'
+      },
+      {
+        key: 'initialWater', label: 'Water Level', unit: 'units', min: 0, max: 100, step: 1,
+        tip: 'Water is split in photosynthesis and produced in respiration. A water cycle also slowly recirculates it.'
+      },
+      {
+        key: 'plantBiomass', label: 'Plant Biomass', unit: '%', min: 0, max: 100, step: 1,
+        tip: 'Total photosynthetic area. More plants = more O₂ and glucose output. Plants grow when energy surplus is positive.'
+      },
+      {
+        key: 'consumerCount', label: 'Consumers (Animals)', unit: 'count', min: 0, max: 50, step: 1,
+        tip: 'Heterotrophs that respire glucose aerobically. Too many animals will deprive the system of O₂ and glucose.'
+      },
+      {
+        key: 'decomposerActivity', label: 'Decomposer Activity', unit: '%', min: 0, max: 100, step: 1,
+        tip: 'Decomposers (bacteria, fungi) break down organic matter and release CO₂, completing the carbon cycle.'
+      },
+      {
+        key: 'temperature', label: 'Temperature', unit: '°C', min: 0, max: 45, step: 0.5,
+        tip: 'Optimal photosynthesis ~25°C; optimal respiration ~37°C. Extremes denature enzymes (Arrhenius / bell-curve effect).'
+      },
+      {
+        key: 'nutrientLevel', label: 'Mineral Nutrients', unit: '%', min: 0, max: 100, step: 1,
+        tip: 'Mineral availability (N, P, K…) for building chlorophyll and enzymes. Low nutrients limit photosynthesis efficiency.'
+      },
+    ];
+
+    const PRESETS = [
+      { lightIntensity: 80, photoperiod: 14, initialCO2: 0.04, initialO2: 21, initialWater: 70, plantBiomass: 60, consumerCount: 10, decomposerActivity: 50, temperature: 22, nutrientLevel: 70 },
+      { lightIntensity: 20, photoperiod: 8, initialCO2: 0.04, initialO2: 21, initialWater: 70, plantBiomass: 30, consumerCount: 20, decomposerActivity: 50, temperature: 22, nutrientLevel: 70 },
+      { lightIntensity: 80, photoperiod: 14, initialCO2: 0.04, initialO2: 21, initialWater: 20, plantBiomass: 60, consumerCount: 10, decomposerActivity: 50, temperature: 38, nutrientLevel: 70 },
+      { lightIntensity: 80, photoperiod: 14, initialCO2: 3.0, initialO2: 15, initialWater: 70, plantBiomass: 60, consumerCount: 10, decomposerActivity: 80, temperature: 22, nutrientLevel: 70 },
+    ];
+
+    function buildConfigPanel(idx) {
+      const col = COLORS[idx];
+      const defs = PRESETS[idx] || PRESETS[0];
+      const rows = FIELD_DEFS.map(f => `
+    <div class="cfg-row">
+      <label class="cfg-label">
+        <span class="cfg-name">${f.label}</span>
+        <span class="cfg-tip-icon">ℹ
+          <span class="cfg-tooltip">${f.tip}</span>
+        </span>
+      </label>
+      <div class="cfg-input-row">
+        <input type="range" id="cfg-${idx}-${f.key}" class="cfg-slider"
+          min="${f.min}" max="${f.max}" step="${f.step}" value="${defs[f.key]}"
+          oninput="document.getElementById('cfgval-${idx}-${f.key}').textContent=this.value">
+        <span class="cfg-val-display" id="cfgval-${idx}-${f.key}">${defs[f.key]}</span>
+        <span class="cfg-unit">${f.unit}</span>
+      </div>
+    </div>`).join('');
+
+      return `
+    <div class="biosphere-config" id="config-${idx}" style="border-top-color:${col.line}">
+      <div class="config-header">
+        <span class="config-dot" style="background:${col.line}"></span>
+        <h3>${col.label}</h3>
+        <button class="remove-btn" onclick="removeBiosphere(${idx})" title="Remove">✕</button>
+      </div>
+      <div class="config-fields">${rows}</div>
+    </div>`;
+    }
+
+    function buildStateCard(idx) {
+      const col = COLORS[idx];
+      return `
+    <div class="state-card" id="card-${idx}" style="border-top-color:${col.line}">
+      <div class="card-header">
+        <span class="status-badge alive">🟢 Alive</span>
+        <span class="card-title" style="color:${col.line}">${col.label}</span>
+        <span class="val-tick tick-badge">0h</span>
+      </div>
+      <div class="health-bar-wrap">
+        <div class="health-bar"><div class="health-fill" style="width:100%;background:#69ff47"></div></div>
+        <span class="health-val">100%</span>
+      </div>
+      <div class="death-cause" style="display:none"></div>
+      <div class="rates-section">
+        <div class="rate-row">
+          <span class="rate-label">📗 Photosynthesis</span>
+          <span class="val-photo rate-val">—</span>
+          <div class="rate-track"><div class="rate-bar photo-rate-bar" style="width:0%;background:#69ff47"></div></div>
+        </div>
+        <div class="rate-row">
+          <span class="rate-label">🔥 Respiration</span>
+          <span class="val-resp rate-val">—</span>
+          <div class="rate-track"><div class="rate-bar resp-rate-bar" style="width:0%;background:#ff6b6b"></div></div>
+        </div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric"><span class="m-label">O₂</span><span class="val-o2 m-val">—</span></div>
+        <div class="metric"><span class="m-label">CO₂</span><span class="val-co2 m-val">—</span></div>
+        <div class="metric"><span class="m-label">Glucose</span><span class="val-glucose m-val">—</span></div>
+        <div class="metric"><span class="m-label">Water</span><span class="val-water m-val">—</span></div>
+        <div class="metric"><span class="m-label">Consumers</span><span class="val-pop m-val">—</span></div>
+        <div class="metric"><span class="m-label">Plants</span><span class="val-plant m-val">—</span></div>
+      </div>
+    </div>`;
+    }
+
+    function readConfig(idx) {
+      const cfg = {};
+      FIELD_DEFS.forEach(f => {
+        const el = document.getElementById(`cfg-${idx}-${f.key}`);
+        cfg[f.key] = el ? parseFloat(el.value) : 0;
+      });
+      return cfg;
+    }
+
+    function renderAll() {
+      document.getElementById('configs-wrap').innerHTML =
+        biospheres.length ? biospheres.map((_, i) => buildConfigPanel(i)).join('')
+          : '<div class="empty-state"><span>🧪</span><span>Click <strong>＋ Add Biosphere</strong> to begin</span></div>';
+      document.getElementById('cards-wrap').innerHTML =
+        biospheres.length ? biospheres.map((_, i) => buildStateCard(i)).join('')
+          : '<div class="empty-state" style="padding:20px 32px;"><span>🔬</span><span>Live states appear here</span></div>';
+    }
+
+    function addBiosphere() {
+      if (isRunning) { alert('Pause the simulation first.'); return; }
+      if (biospheres.length >= MAX_BS) { alert(`Max ${MAX_BS} biospheres.`); return; }
+      const idx = biospheres.length;
+      biospheres.push({ instance: new Biosphere(PRESETS[idx] || PRESETS[0], COLORS[idx].label), color: COLORS[idx] });
+      renderAll();
+    }
+
+    function removeBiosphere(idx) {
+      if (isRunning) { alert('Pause the simulation first.'); return; }
+      biospheres.splice(idx, 1);
+      renderAll();
+    }
+
+    function applyAndRun() {
+      if (isRunning) pauseSim();
+      biospheres = biospheres.map((b, i) => ({
+        instance: new Biosphere(readConfig(i), COLORS[i].label),
+        color: b.color,
+      }));
+      renderAll();
+      rebuildDatasets();
+      for (const c of Object.values(charts)) { c.data.labels = []; c.data.datasets.forEach(d => d.data = []); c.update(); }
+      maxTicks = parseInt(document.getElementById('max-ticks').value) || 720;
+      tickSpeed = parseInt(document.getElementById('tick-speed').value) || 150;
+      startSim();
+    }
+
+    /* ── Init ── */
+    document.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      document.getElementById('add-sphere-btn').onclick = addBiosphere;
+      document.getElementById('run-btn').onclick = startSim;
+      document.getElementById('reset-btn').onclick = resetAll;
+      document.getElementById('apply-run-btn').onclick = applyAndRun;
+      document.getElementById('tick-speed').oninput = e => {
+        tickSpeed = parseInt(e.target.value);
+        document.getElementById('tick-speed-val').textContent = `${tickSpeed}ms`;
+        if (isRunning) { clearInterval(simTimer); simTimer = setInterval(tick, tickSpeed); }
+      };
+      addBiosphere();
+      addBiosphere();
+    });
+  </script>
+</body>
+
+</html>
