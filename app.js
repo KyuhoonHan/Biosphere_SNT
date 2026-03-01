@@ -243,47 +243,47 @@ function resetAll() {
 // ─── Biosphere Card Builder ────────────────────────────────────────────────────
 function buildConfigPanel(idx) {
     const color = COLORS[idx];
-    const defaults = getDefaultConfig(idx);
+    const userCfg = biospheres[idx].instance.cfg;
 
     const fields = [
         {
-            key: 'lightIntensity', label: 'Light Intensity', unit: 'lux', min: 0, max: 100, step: 1, val: defaults.lightIntensity,
+            key: 'lightIntensity', label: 'Light Intensity', unit: 'lux', min: 0, max: 100, step: 1, val: userCfg.lightIntensity,
             tip: 'Amount of light available for photosynthesis. Higher light → faster glucose production.'
         },
         {
-            key: 'photoperiod', label: 'Photoperiod', unit: 'h/day', min: 0, max: 24, step: 0.5, val: defaults.photoperiod,
+            key: 'photoperiod', label: 'Photoperiod', unit: 'h/day', min: 0, max: 24, step: 0.5, val: userCfg.photoperiod,
             tip: 'Hours of light per day. Periods of darkness force plants to respire stored glucose.'
         },
         {
-            key: 'initialCO2', label: 'Initial CO₂', unit: '%', min: 0.01, max: 10, step: 0.01, val: defaults.initialCO2,
+            key: 'initialCO2', label: 'Initial CO₂', unit: '%', min: 0.01, max: 10, step: 0.01, val: userCfg.initialCO2,
             tip: 'CO₂ is a substrate for photosynthesis. Too high (>5%) causes CO₂ toxicity.'
         },
         {
-            key: 'initialO2', label: 'Initial O₂', unit: '%', min: 0, max: 30, step: 0.5, val: defaults.initialO2,
+            key: 'initialO2', label: 'Initial O₂', unit: '%', min: 0, max: 30, step: 0.5, val: userCfg.initialO2,
             tip: 'O₂ is required for aerobic respiration. Below ~1% causes asphyxiation.'
         },
         {
-            key: 'initialWater', label: 'Water Level', unit: 'units', min: 0, max: 100, step: 1, val: defaults.initialWater,
+            key: 'initialWater', label: 'Water Level', unit: 'units', min: 0, max: 100, step: 1, val: userCfg.initialWater,
             tip: 'Water is consumed by photosynthesis and released by respiration. Required for survival.'
         },
         {
-            key: 'plantBiomass', label: 'Plant Biomass', unit: '%', min: 0, max: 100, step: 1, val: defaults.plantBiomass,
+            key: 'plantBiomass', label: 'Plant Biomass', unit: '%', min: 0, max: 100, step: 1, val: userCfg.plantBiomass,
             tip: 'Amount of photosynthetic plant material. More plants → more O₂ and glucose production.'
         },
         {
-            key: 'consumerCount', label: 'Consumers (Animals)', unit: 'count', min: 0, max: 50, step: 1, val: defaults.consumerCount,
+            key: 'consumerCount', label: 'Consumers (Animals)', unit: 'count', min: 0, max: 50, step: 1, val: userCfg.consumerCount,
             tip: 'Heterotrophs that consume glucose via respiration. Too many will deplete O₂ and glucose.'
         },
         {
-            key: 'decomposerActivity', label: 'Decomposer Activity', unit: '%', min: 0, max: 100, step: 1, val: defaults.decomposerActivity,
+            key: 'decomposerActivity', label: 'Decomposer Activity', unit: '%', min: 0, max: 100, step: 1, val: userCfg.decomposerActivity,
             tip: 'Decomposers recycle organic matter, releasing CO₂. They complete the carbon cycle.'
         },
         {
-            key: 'temperature', label: 'Temperature', unit: '°C', min: 0, max: 45, step: 0.5, val: defaults.temperature,
+            key: 'temperature', label: 'Temperature', unit: '°C', min: 0, max: 45, step: 0.5, val: userCfg.temperature,
             tip: 'Optimal photosynthesis ~25°C, respiration ~37°C. Extremes denature enzymes.'
         },
         {
-            key: 'nutrientLevel', label: 'Mineral Nutrients', unit: '%', min: 0, max: 100, step: 1, val: defaults.nutrientLevel,
+            key: 'nutrientLevel', label: 'Mineral Nutrients', unit: '%', min: 0, max: 100, step: 1, val: userCfg.nutrientLevel,
             tip: 'Mineral availability (N, P, K, etc.) required for building chlorophyll and enzymes.'
         },
     ];
@@ -298,8 +298,10 @@ function buildConfigPanel(idx) {
       <div class="cfg-input-row">
         <input type="range" id="cfg-${idx}-${f.key}" class="cfg-slider"
           min="${f.min}" max="${f.max}" step="${f.step}" value="${f.val}"
-          oninput="document.getElementById('cfgval-${idx}-${f.key}').textContent=this.value">
-        <span class="cfg-val-display" id="cfgval-${idx}-${f.key}">${f.val}</span>
+          oninput="document.getElementById('cfgval-${idx}-${f.key}').value=this.value">
+        <input type="number" id="cfgval-${idx}-${f.key}" class="cfg-val-input"
+          min="${f.min}" max="${f.max}" step="${f.step}" value="${f.val}"
+          oninput="document.getElementById('cfg-${idx}-${f.key}').value=this.value">
         <span class="cfg-unit">${f.unit}</span>
       </div>
     </div>`).join('');
@@ -359,13 +361,7 @@ function buildStateCard(idx) {
 }
 
 function getDefaultConfig(idx) {
-    const presets = [
-        { lightIntensity: 80, photoperiod: 14, initialCO2: 0.04, initialO2: 21, initialWater: 70, plantBiomass: 60, consumerCount: 10, decomposerActivity: 50, temperature: 22, nutrientLevel: 70 },
-        { lightIntensity: 20, photoperiod: 8, initialCO2: 0.04, initialO2: 21, initialWater: 70, plantBiomass: 30, consumerCount: 20, decomposerActivity: 50, temperature: 22, nutrientLevel: 70 },
-        { lightIntensity: 80, photoperiod: 14, initialCO2: 0.04, initialO2: 21, initialWater: 20, plantBiomass: 60, consumerCount: 10, decomposerActivity: 50, temperature: 38, nutrientLevel: 70 },
-        { lightIntensity: 80, photoperiod: 14, initialCO2: 3.0, initialO2: 15, initialWater: 70, plantBiomass: 60, consumerCount: 10, decomposerActivity: 80, temperature: 22, nutrientLevel: 70 },
-    ];
-    return presets[idx] || presets[0];
+    return { lightIntensity: 80, photoperiod: 14, initialCO2: 0.04, initialO2: 21, initialWater: 70, plantBiomass: 60, consumerCount: 10, decomposerActivity: 50, temperature: 22, nutrientLevel: 70 };
 }
 
 function readConfig(idx) {
@@ -373,7 +369,7 @@ function readConfig(idx) {
         'plantBiomass', 'consumerCount', 'decomposerActivity', 'temperature', 'nutrientLevel'];
     const cfg = {};
     keys.forEach(k => {
-        cfg[k] = parseFloat(document.getElementById(`cfg-${idx}-${k}`)?.value ?? 0);
+        cfg[k] = parseFloat(document.getElementById(`cfgval-${idx}-${k}`)?.value ?? 0);
     });
     return cfg;
 }
@@ -399,7 +395,9 @@ function renderAll() {
         keys.forEach(k => {
             const el = document.getElementById(`cfgval-${i}-${k}`);
             const sl = document.getElementById(`cfg-${i}-${k}`);
-            if (el && sl) el.textContent = sl.value;
+            if (el && sl) {
+                el.value = sl.value;
+            }
         });
     });
 }

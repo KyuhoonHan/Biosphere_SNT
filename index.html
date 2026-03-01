@@ -383,12 +383,34 @@
       cursor: pointer;
     }
 
-    .cfg-val-display {
+    .cfg-val-input {
       font-family: 'JetBrains Mono', monospace;
       font-size: .76rem;
       color: var(--cyan);
-      min-width: 38px;
+      width: 44px;
       text-align: right;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 3px;
+      outline: none;
+    }
+
+    .cfg-val-input:focus {
+      border-color: var(--cyan);
+      background: rgba(0, 229, 255, 0.05);
+    }
+
+    .cfg-val-input::-webkit-outer-spin-button,
+    .cfg-val-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 0;
+    }
+
+    .cfg-val-input[type=number] {
+      -moz-appearance: textfield;
+      appearance: textfield;
     }
 
     .cfg-unit {
@@ -1154,14 +1176,11 @@
 
     const PRESETS = [
       { lightIntensity: 80, photoperiod: 14, initialCO2: 0.04, initialO2: 21, initialWater: 70, plantBiomass: 60, consumerCount: 10, decomposerActivity: 50, temperature: 22, nutrientLevel: 70 },
-      { lightIntensity: 20, photoperiod: 8, initialCO2: 0.04, initialO2: 21, initialWater: 70, plantBiomass: 30, consumerCount: 20, decomposerActivity: 50, temperature: 22, nutrientLevel: 70 },
-      { lightIntensity: 80, photoperiod: 14, initialCO2: 0.04, initialO2: 21, initialWater: 20, plantBiomass: 60, consumerCount: 10, decomposerActivity: 50, temperature: 38, nutrientLevel: 70 },
-      { lightIntensity: 80, photoperiod: 14, initialCO2: 3.0, initialO2: 15, initialWater: 70, plantBiomass: 60, consumerCount: 10, decomposerActivity: 80, temperature: 22, nutrientLevel: 70 },
     ];
 
     function buildConfigPanel(idx) {
       const col = COLORS[idx];
-      const defs = PRESETS[idx] || PRESETS[0];
+      const userCfg = biospheres[idx].instance.cfg;
       const rows = FIELD_DEFS.map(f => `
     <div class="cfg-row">
       <label class="cfg-label">
@@ -1172,9 +1191,11 @@
       </label>
       <div class="cfg-input-row">
         <input type="range" id="cfg-${idx}-${f.key}" class="cfg-slider"
-          min="${f.min}" max="${f.max}" step="${f.step}" value="${defs[f.key]}"
-          oninput="document.getElementById('cfgval-${idx}-${f.key}').textContent=this.value">
-        <span class="cfg-val-display" id="cfgval-${idx}-${f.key}">${defs[f.key]}</span>
+          min="${f.min}" max="${f.max}" step="${f.step}" value="${userCfg[f.key]}"
+          oninput="document.getElementById('cfgval-${idx}-${f.key}').value=this.value">
+        <input type="number" id="cfgval-${idx}-${f.key}" class="cfg-val-input"
+          min="${f.min}" max="${f.max}" step="${f.step}" value="${userCfg[f.key]}"
+          oninput="document.getElementById('cfg-${idx}-${f.key}').value=this.value">
         <span class="cfg-unit">${f.unit}</span>
       </div>
     </div>`).join('');
@@ -1230,7 +1251,7 @@
     function readConfig(idx) {
       const cfg = {};
       FIELD_DEFS.forEach(f => {
-        const el = document.getElementById(`cfg-${idx}-${f.key}`);
+        const el = document.getElementById(`cfgval-${idx}-${f.key}`);
         cfg[f.key] = el ? parseFloat(el.value) : 0;
       });
       return cfg;
@@ -1243,13 +1264,22 @@
       document.getElementById('cards-wrap').innerHTML =
         biospheres.length ? biospheres.map((_, i) => buildStateCard(i)).join('')
           : '<div class="empty-state" style="padding:20px 32px;"><span>🔬</span><span>Live states appear here</span></div>';
+
+      // Ensure inputs and sliders stay synced correctly if values are dynamically changed
+      biospheres.forEach((b, i) => {
+        FIELD_DEFS.forEach(f => {
+          const el = document.getElementById(`cfgval-${i}-${f.key}`);
+          const sl = document.getElementById(`cfg-${i}-${f.key}`);
+          if (el && sl) el.value = sl.value;
+        });
+      });
     }
 
     function addBiosphere() {
       if (isRunning) { alert('Pause the simulation first.'); return; }
       if (biospheres.length >= MAX_BS) { alert(`Max ${MAX_BS} biospheres.`); return; }
       const idx = biospheres.length;
-      biospheres.push({ instance: new Biosphere(PRESETS[idx] || PRESETS[0], COLORS[idx].label), color: COLORS[idx] });
+      biospheres.push({ instance: new Biosphere(PRESETS[0], COLORS[idx].label), color: COLORS[idx] });
       renderAll();
     }
 
